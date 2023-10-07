@@ -138,7 +138,7 @@ if __name__ == "__main__":
     
     ############################
     filename2 = 'test_low_copy.stream'
-    # select_col = retrieve(data_columns,'h','k', 'l')
+    select_col = retrieve(data_columns,'h','k', 'l')
     
     # file1 = load_stream(filename1)
     # file2 = load_stream(filename2)
