@@ -185,12 +185,6 @@ def load_stream(stream_name):
 
 #############################################
 
-def retrieve(data_columns, *args):
-    # taking in data_columns and selecting the desired columns to retrieve
-    return [data_columns[col] for col in args if col in data_columns]
-
-#############################################
-
 def duplicate_before_overwrite(filename):
     # taking filename and adding copy extension to it.
     base_file, extension = filename.rsplit('.',1)
@@ -201,18 +195,29 @@ def duplicate_before_overwrite(filename):
 
 #############################################
 
-def compare_high_low(high_data, low_data):
+def compare_high_low(high_data, low_data, *columns):
     """
     Compare the high and low data and return the compared data.
     """
     compared_data = {}
-    for col in high_data:
-        if col in low_data:
+    for col in columns:
+        if col in high_data and col in low_data:
             print(f'High: {high_data[col]} \n')
             print(f'Low: {low_data[col]} \n')
             print()
             compared_data[col] = (high_data[col], low_data[col])
+            retrieve(list(high_data), list(low_data), *columns)
     return compared_data
+
+def retrieve(data_columns, *args):
+    result = []
+    try:
+        # taking in data_columns and selecting the desired columns to retrieve
+        result = [data_columns[col] for col in args if col in data_columns]
+    except Exception as e:
+        pass
+    return result
+#############################################
 
 
 def overwrite_low_in_high(filename, overwrite_data):
@@ -361,7 +366,10 @@ low_data = load_stream(low_stream_name)
 
 # Took low data from low_stream and put in high_stream file.
 overwrite_data = low_data
-# overwrite_low_in_high(high_stream_name, overwrite_data)
+overwrite_low_in_high(high_stream_name, overwrite_data)
+
+########## compare any columns in data_columns
+# compare_high_low(high_data, low_data, "h")
 
 # now high_stream has data from low_stream.
 image_name = "9_18_23_high_intensity_3e8keV-1_test.h5"
