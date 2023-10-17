@@ -18,9 +18,7 @@ import overwrite_10_2_23 as overwrite
 ################################    
 def load_file_h5():
     global filename
-    
     filename =  "test_manipulate2HDF5.h5"
-    
     #if filename is not within working directory
     if not os.path.exists(filename):
         print("File not found within working directory.")
@@ -299,33 +297,24 @@ coordinates = threshold.get_coordinates_above_threshold()
 radius0 = 1; radius1=2; radius2=3; radius3=4
 completed = False
 while not completed:
-    # threshold = PeakThresholdProcessor(intensity_array, threshold_value=9000)
-    # coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius0)
-    # intensity = intensity_peak; avg = avg_values
-    # spot_estimate_peak = intensity - avg    
-    # coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius1)
-    # intensity = intensity_peak; avg = avg_values
-    # spot_estimate_peak = intensity - avg    
-    # print("Peak Estimate for ring 1:", spot_estimate_peak, 'with radius of', radius1)
-    # coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius2)
-    # intensity = intensity_peak; avg = avg_values
-    # spot_estimate_peak = intensity - avg    
-    # print("Peak Estimate for ring 2:", spot_estimate_peak, 'with radius of', radius2)    
-    # coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius2)
-    # intensity = intensity_peak; avg = avg_values
-    # spot_estimate_peak = intensity - avg    
-    # print("Peak Estimate for ring 3:", spot_estimate_peak, 'with radius of', radius3)
+    threshold = PeakThresholdProcessor(intensity_array, threshold_value=9000)
+    coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius0)
+    intensity = intensity_peak; avg = avg_values
+    spot_estimate_peak = intensity - avg    
+    coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius1)
+    intensity = intensity_peak; avg = avg_values
+    spot_estimate_peak = intensity - avg    
+    print("Peak Estimate for ring 1:", spot_estimate_peak, 'with radius of', radius1)
+    coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius2)
+    intensity = intensity_peak; avg = avg_values
+    spot_estimate_peak = intensity - avg    
+    print("Peak Estimate for ring 2:", spot_estimate_peak, 'with radius of', radius2)    
+    coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius2)
+    intensity = intensity_peak; avg = avg_values
+    spot_estimate_peak = intensity - avg    
+    print("Peak Estimate for ring 3:", spot_estimate_peak, 'with radius of', radius3)
     completed = True   
 
-
-intensity_array_overwrite = overwrite.intensities_array
-threshold_overwrite = PeakThresholdProcessor(intensity_array_overwrite, threshold_value=300)
-coordinates_overwrite = threshold.get_coordinates_above_threshold()
-coordinate_menu(intensity_array_overwrite, threshold_value=threshold_overwrite.threshold_value, coordinates=coordinates_overwrite, radius=radius3)
-intensity = intensity_peak; avg = avg_values
-spot_estimate_peak = intensity - avg 
-print("Peak Estimate for ring 3:", spot_estimate_peak, 'with radius of', radius3)
-# note that the coordinate (1,any_y) means that the x coordinate is in the 1st 
 
 
 
