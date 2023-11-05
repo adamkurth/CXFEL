@@ -1,186 +1,60 @@
-#!/usr/bin/env python
-"""
-eigerStream.py listens to EIGER ZMQ messages and decodes the frames.
-The data can be either saved as raw bytes, json format, tif, cbf or h5.
-Please see the corresponding file writer modules for further information
-on the decoding process.
-
-DISCLAIMER:
-This code is build for demonstration pupose only. It is not meant
-to be productive, efficient, nor complete.
-
-If you have any questions regarding the implementation of
-the EIGER stream interface, please contact support@dectris.com.
-
-usage: eigerStream.py [-h] -i IP [-p PORT] [-v] [-f FILENAME]
-
-Listen to stream interface and save data
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -i IP, --ip IP        EIGER host ip
-  -p PORT, --port PORT  EIGER host port
-  -v, --verbose         print some more messages
-  -f FILENAME, --filename FILENAME
-                        /path/to/file.ext with extension
-                        [.bytes|.raw|.tiff|.tiff16|.cbf|.h5|.log|none] stream
-                        data to ALBULA viewer window if filename is "albula"
-
-#########
-TODO: implement software roi mode
-TODO: implement software binning mode
-#########
-"""
-
-__author__ = "SasG"
-__date__ = "17/05/17"
-__version__ = "0.0.10"
-__reviewer__ = ""
-
-import zmq
-import argparse
-import os
 import sys
-import datetime
-import tempfile
+import numpy as np
+import h5py
+import hdf5plugin
+import pyqtgraph as pg
+from reborn.fileio.getters import FrameGetter
+from reborn.viewers.qtviews import PADView
+from reborn.detector import PADGeometry, PADGeometryList
+from reborn.dataframe import DataFrame
+from reborn.source import Beam
+from reborn.const import eV
 
-class ZMQStream():
-    def __init__(self, host, port=9999, verbose=False):
-        """
-        create stream listener object
-        """
-        self.__host__ = host # EIGER ip
-        self.__port__ = port # tcp stream port
-        self.__verbose__ = verbose # verbosity
+#datapath = "data/series_3_data_000001.h5"
+#masterpath = "data/series_2_master.h5"
+#masterpaths = ["data/series_2_master.h5", "data/series_3_master.h5"]
 
-        self.connect() # start stream
+# h5 = h5py.File(datapath)
+# data = h5["entry/data/data"]
 
-    def connect(self):
-        """
-        open ZMQ pull socket
-        return receiver object
-        """
-        print("[INFO] MAKE SURE STREAM INTERFACE IS ACTIVATED")
+# h5m = h5py.File(masterpath)
+# mdata = print(list(h5m["entry/data"].keys()))
+# md = h5m["entry/data/data_000001"][:]
 
-        context = zmq.Context()
-        receiver = context.socket(zmq.PULL)
-        receiver.connect("tcp://{0}:{1}".format(self.__host__,self.__port__))
+# print(md)
 
-        self.__receiver__ = receiver
-        print("[OK] initialized stream receiver for host tcp://{0}:{1}".format(self.__host__,self.__port__))
-        return self.__receiver__
+# md[md > 100] = 2
 
-    def receive(self):
-        """
-        receive and return zmq frames if available
-        """
-        if self.__receiver__.poll(100): # check if message available
-            frames = self.__receiver__.recv_multipart(copy = False)
-            if self.__verbose__:
-                t = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-                print("[%s] received zmq frames with length %d" %(t,len(frames)))
-            return frames
-
-    def close(self):
-        """
-        close and disable stream
-        """
-        if self.__verbose__:
-            print("close connection")
-        return self.__receiver__.close()
-
-def parseArgs():
-    """
-    parse user input and return arguments
-    """
-    parser = argparse.ArgumentParser(description = "Listen to stream interface and save data")
-
-    parser.add_argument("-i", "--ip", help="EIGER host ip", type=str, required=True)
-    parser.add_argument("-p", "--port", help="EIGER host port", type=int, default=9999)
-    parser.add_argument("-v", "--verbose", help="print some more messages", action="store_true", default = False)
-    parser.add_argument("-f", "--filename", help="/path/to/file.ext with extension [.bytes|.raw|.tiff|.tiff16|.cbf|.h5|.log|none] stream data to ALBULA viewer window if filename is \"albula\"", default = None)
-    #parser.add_argument("-roi", "--roi", type=int, nargs=4, help="roi mode", default=False)
-
-    args = parser.parse_args()
-
-    return args
-
-def getFileWriter(filename, verbosity):
-    """
-    return file writer class corresponding to the file extension
-    """
-
-    if filename:
-        output = os.path.dirname(filename) # get save directory if given
-        if not output:
-            output = os.getcwd()
-        basename, ftype = os.path.splitext(os.path.basename(filename)) # get filename and extension
-
-        if basename.startswith("."): # if only extension is given (AndF)
-            ftype = basename
-            basename = "eigerStream"
-    else:
-        from fileWriter import fileWriter
-        return fileWriter.FileWriter("noname", ".", "dummy", verbosity)
-
-    if filename in ["albula","ALBULA"]:
-        from fileWriter import stream2albula
-        fw = stream2albula.Stream2Albula(basename, output, verbosity)
-        return fw
-
-    if ftype == "":
-        from fileWriter import fileWriter
-        fw = fileWriter.FileWriter(basename, output, "dummy", verbosity)
-    elif ftype == ".raw":
-        from fileWriter import stream2raw
-        fw = stream2raw.Stream2Raw(basename, output, verbosity)
-    elif ftype == ".bytes":
-        from fileWriter import stream2bytes
-        fw = stream2bytes.Stream2Bytes(basename, output, verbosity)
-    elif "tif" in ftype:
-        if "16" in ftype:
-            dtype = "int16"
-        else:
-            dtype = None # native
-        from fileWriter import stream2tif
-        fw = stream2tif.Stream2Tif(basename, output, verbosity, dtype)
-    elif ftype == ".cbf":
-        from fileWriter import stream2cbf
-        fw = stream2cbf.Stream2Cbf(basename, output, verbosity)
-    elif ftype == ".h5" or ftype == ".hdf":
-        from fileWriter import stream2hdf
-        fw = stream2hdf.Stream2Hdf(basename, output, verbosity)
-
-    elif ftype == ".log":
-        from fileWriter import stream2log
-        fw = stream2log.Stream2Log(basename, output, verbose=verbosity)
-
-    else:
-        raise RuntimeError("Unkwon file type %s in %s" %(ftype,filename))
-    return fw
-
-def versionControl(required=(2,7)):
-    """
-    check python version
-    """
-    if sys.version_info < required:
-        raise RuntimeError("minimum Python 2.7.0 is required!")
+# # pg.image(md)
+# pg.image(h5m["entry/data/data_000001"][0, :, :])
+# pg.mkQApp().exec_()
 
 
-if __name__ == "__main__":
-    os.system("clear") # clear terminal
-    versionControl() # check if Python versions is > 2.7.0
-    args = parseArgs() # get cmd line args
-    fw = getFileWriter(args.filename, args.verbose) # create filewriter according to file type
-    stream = ZMQStream(args.ip, args.port, args.verbose) # initialize stream pull socket
-    if not args.filename: stream.__verbose__ = True
-    try:
-        print("[OK] stream listener ready")
-        # listen to stream
-        while True:
-            frames = stream.receive() # get ZMQ frames
-            if frames: # decode frames using the filewriter
-                fw.decodeFrames(frames)
+class MyFrameGetter(FrameGetter):
+    def __init__(self, masterpath):
+        self.masterpath = masterpath
+        self.h5 = h5py.File(masterpath)
+        self.n_frames = self.h5["entry/data/data_000001"].shape[0]
+        self.shape = self.h5["entry/data/data_000001"].shape[1:]
+        print(self.shape)
+        self.geom = PADGeometryList([PADGeometry(shape=self.shape, pixel_size=75e-6, distance=0.1)])
+        self.beam = Beam(photon_energy=9500*eV)
+    def get_data(self, frame_number=0):
+        frame_number = int(frame_number)
+        dataframe = DataFrame()
+        dataframe.set_pad_geometry(self.geom)
+        dataframe.set_beam(self.beam)
+        data = np.double(self.h5["entry/data/data_000001"][frame_number,:,:])
+        mask = data < 200
+        data[mask == 0] = 0
+        dataframe.set_raw_data(data)
+        dataframe.set_mask(mask)
+        return dataframe
 
-    except KeyboardInterrupt:
-        stream.close()
+masterpath = "series_1_master.h5"
+mfg = MyFrameGetter(masterpath)
+frame = mfg.get_frame(0)
+pv = PADView(frame_getter=mfg, pad_geometry=frame.get_pad_geometry())
+pv.set_levels(levels=(0, 1))
+pv.show()
+pg.mkQApp().exec_()

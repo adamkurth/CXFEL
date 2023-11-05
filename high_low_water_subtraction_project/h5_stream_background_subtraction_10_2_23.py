@@ -7,7 +7,7 @@ from os.path import basename, splitext
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-import overwrite_10_2_23 as overwrite
+# import overwrite_10_2_23 as overwrite
 
 # #argument runnig script through term
 # if sys.argv[1] == '-':
@@ -141,6 +141,7 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
                 else: 
                     avg_values = "Could not divide by 0."
                 print('Average surrounding peak:',avg_values)
+                print('Peak point:', intensity_peak)
                 return avg_values,intensity_peak
                 break
             else: 
@@ -192,9 +193,9 @@ def load_stream():
                     data_columns['ss'].append(float(elements[8]))
                     data_columns['panel'].append(str(elements[9]))
                     
-                    result_x.append(fs)
-                    result_y.append(ss)
-                    result_z.append(intensity)
+                    # result_x.append(fs)
+                    # result_y.append(ss)
+                    # result_z.append(intensity)
                 except:
                     pass
         elif line.startswith('----- End geometry file -----'):
@@ -220,9 +221,9 @@ def build_coord_intensity_array():
     return coordinates_and_intensities
 
 def create_scatter(x, y, z, highlight_x=None, highlight_y=None):
-    ####
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
+    # data_columns = build_coord_intensity_array()
     scatter = ax.scatter(coordinates[:, 0], coordinates[:, 1], z, c=z, cmap='viridis', marker='o')
 
     highlight_z = intensity_array[highlight_x,highlight_y]
@@ -263,57 +264,57 @@ def read_hdf5(filename, location):
         print("An error has occured.", e)
    
 
-def write_hdf5(filename, data, dataset_name="/data/data/intensity_data"):
-    # WRITES HDF5 FILE
-    with h5.File(filename+'-HDF5.h5', 'w') as f:
-        dset = f.create_dataset(dataset_name, data=data)
+# def write_hdf5(filename, data, dataset_name="/data/data/intensity_data"):
+#     # WRITES HDF5 FILE
+#     with h5.File(filename+'-HDF5.h5', 'w') as f:
+#         dset = f.create_dataset(dataset_name, data=data)
          
 ######################################
+if __name__ == "__main__":
+    load_stream()
+    xmin, xmax = np.min(result_x), np.max(result_x)
+    ymin, ymax = np.min(result_y), np.max(result_y)
 
-load_stream()
-xmin, xmax = np.min(result_x), np.max(result_x)
-ymin, ymax = np.min(result_y), np.max(result_y)
+    num_rows = int(xmax-xmin+1)
+    num_cols = int(ymax-ymin+1)
+    print(num_rows, num_cols)
+    intensity_array = np.zeros((num_rows,num_cols))
 
-num_rows = int(xmax-xmin+1)
-num_cols = int(ymax-ymin+1)
-print(num_rows, num_cols)
-intensity_array = np.zeros((num_rows,num_cols))
+    for x,y,z in zip(result_x,result_y,result_z):
+        row = int(x - xmin)
+        col = int(y - ymin)
+        intensity_array[row,col] = z
+        
+    #do not need to constantly write the same intensity values to the same array.
+    # write_hdf5(filename=stream_name, data=intensity_array)
 
-for x,y,z in zip(result_x,result_y,result_z):
-    row = int(x - xmin)
-    col = int(y - ymin)
-    intensity_array[row,col] = z
-    
-#do not need to constantly write the same intensity values to the same array.
-# write_hdf5(filename=stream_name, data=intensity_array)
+    location = "intensity_array"
+    # read_hdf5(filename=stream_name, location=location)
+    threshold = PeakThresholdProcessor(intensity_array, threshold_value=10000)
+    print ("Original threshold value: ", threshold.threshold_value, "\n")
+    global coordinates
+    coordinates = threshold.get_coordinates_above_threshold()
 
-location = "intensity_array"
-# read_hdf5(filename=stream_name, location=location)
-threshold = PeakThresholdProcessor(intensity_array, threshold_value=10000)
-print ("Original threshold value: ", threshold.threshold_value, "\n")
-global coordinates
-coordinates = threshold.get_coordinates_above_threshold()
-
-radius0 = 1; radius1=2; radius2=3; radius3=4
-completed = False
-while not completed:
-    threshold = PeakThresholdProcessor(intensity_array, threshold_value=9000)
-    coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius0)
-    intensity = intensity_peak; avg = avg_values
-    spot_estimate_peak = intensity - avg    
-    coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius1)
-    intensity = intensity_peak; avg = avg_values
-    spot_estimate_peak = intensity - avg    
-    print("Peak Estimate for ring 1:", spot_estimate_peak, 'with radius of', radius1)
-    coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius2)
-    intensity = intensity_peak; avg = avg_values
-    spot_estimate_peak = intensity - avg    
-    print("Peak Estimate for ring 2:", spot_estimate_peak, 'with radius of', radius2)    
-    coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius2)
-    intensity = intensity_peak; avg = avg_values
-    spot_estimate_peak = intensity - avg    
-    print("Peak Estimate for ring 3:", spot_estimate_peak, 'with radius of', radius3)
-    completed = True   
+    radius0 = 1; radius1=2; radius2=3; radius3=4
+    completed = False
+    while not completed:
+        threshold = PeakThresholdProcessor(intensity_array, threshold_value=9000)
+        coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius0)
+        intensity = intensity_peak; avg = avg_values
+        spot_estimate_peak = intensity - avg    
+        coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius1)
+        intensity = intensity_peak; avg = avg_values
+        spot_estimate_peak = intensity - avg    
+        print("Peak Estimate for ring 1:", spot_estimate_peak, 'with radius of', radius1)
+        coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius2)
+        intensity = intensity_peak; avg = avg_values
+        spot_estimate_peak = intensity - avg    
+        print("Peak Estimate for ring 2:", spot_estimate_peak, 'with radius of', radius2)    
+        coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius2)
+        intensity = intensity_peak; avg = avg_values
+        spot_estimate_peak = intensity - avg    
+        print("Peak Estimate for ring 3:", spot_estimate_peak, 'with radius of', radius3)
+        completed = True   
 
 
 

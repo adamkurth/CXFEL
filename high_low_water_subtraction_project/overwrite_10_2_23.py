@@ -6,127 +6,6 @@ import h5py as h5
 print(os.getcwd())
 # os.chdir('/Users/adamkurth/Documents/vscode/CXFEL Image Analysis/CXFEL/high_low_water_subtraction_project')
 
-############################################ From Stream Script (below) #############################################
-       
-class PeakThresholdProcessor: 
-    #self method
-    def __init__(self, image_array, threshold_value=0):
-        self.image_array = image_array
-        self.threshold_value = threshold_value
-    #setter for threshold value
-    def set_threshold_value(self, new_threshold_value):
-        self.threshold_value = new_threshold_value
-    #getter for for above threshold
-    def get_coordinates_above_threshold(self):  
-        coordinates = np.argwhere(self.image_array > self.threshold_value)
-        return coordinates
- 
-def extract_region(image_array, region_size, x_center, y_center):
-    extract = ArrayRegion(image_array)
-    extract.set_peak_coordinate(x_center,y_center)
-    extract.set_region_size(region_size)
-    np.set_printoptions(floatmode='fixed', precision=10)
-    np.set_printoptions(edgeitems=3, suppress=True, linewidth=200)
-    region = extract.get_region()
-    return region      
-class ArrayRegion:
-    def __init__(self, array):
-        self.array = array
-        self.x_center = 0
-        self.y_center = 0
-        self.region_size = 0
-        
-    def set_peak_coordinate(self, x, y):
-            self.x_center = x
-            self.y_center = y
-
-    def set_region_size(self, size):
-        #limit that is printable in terminal
-        self.region_size = size
-        max_printable_region = min(self.array.shape[0], self.array.shape[1]) //2
-        self.region_size = min(size, max_printable_region)
-        
-    def get_region(self):
-        x_range = slice(self.x_center - self.region_size, self.x_center + self.region_size+1)
-        y_range = slice(self.y_center - self.region_size, self.y_center + self.region_size+1)
-        region = self.array[x_range, y_range]
-        return region
-
-def coordinate_menu(image_array, threshold_value, coordinates, radius): 
-    print("\nCoordinates above given threshold:", threshold_value, 'with radius: ', radius)
-    for i, (x, y) in enumerate(coordinates):
-        print(f"{i + 1}. ({x}, {y})")
-        
-    while True:
-        choice = input("\nWhich coordinate do you want to process? (or 'q' to quit)\n")
-        if choice == "q":
-            print("Exiting")
-            break
-        
-        try: 
-            count = int(choice)-1
-            if 0 <= count < len(coordinates):
-                x,y = coordinates[count]
-                print(f"\nProcessing - ({x}, {y})")
-                print('Printing 9x9 two-dimensional array\n')
-                
-                #creates visualization if the array, of chosen peak
-                print(x,y)
-                display_region = extract_region(image_array, region_size=4, x_center=x, y_center=y)
-                
-                print('DISPLAY REGION \n', display_region, '\n')
-                
-                #segment is the area with the given radius that's passed through the function.
-                segment = extract_region(image_array, region_size=radius, x_center=x, y_center=y)
-                print ('SEGMENT \n', segment, '\n')
-                
-                # COMMENTED OUT FOR NOW, EASE OF TESTING
-
-                #returns boolean array of traversed values.
-                bool_square = np.zeros_like(segment, dtype=bool)
-                print('BOOLEAN: before traversing.', '\n', bool_square, '\n') 
-            
-                ######start 3 ring integration
-                values_array = extract_region(image_array, region_size=radius, x_center=x, y_center=y)
-                
-                global avg_values, intensity_peak
-                total_sum = 0; skipped_point = None; count = 0; intensity_peak = 0
-                #traverses through (i = row) , (j = column)
-                for col_index in range(values_array.shape[0]):
-                    for row_index in range(values_array.shape[1]):
-                        if values_array[row_index, col_index] >= 0:
-                            count += 1
-                            bool_square[row_index, col_index] = True
-                            if row_index == radius and col_index == radius:
-                                skipped_point = (row_index, col_index)  
-                                intensity_peak = values_array[row_index, col_index]
-                                print(f'Peak point to be skipped: ({row_index}, {col_index}) ', values_array[radius,radius])
-                            elif abs(row_index - radius) <= 1 and abs(col_index - radius) <=1:
-                                print(f'Passed (row, col) ({row_index}, {col_index})', values_array[row_index,col_index])
-                                pass
-                            else:
-                                print(f'(row,col) ({row_index}, {col_index}) with a value of ', values_array[row_index, col_index])
-                                total_sum += values_array[row_index, col_index]
-                                
-                print('\n######################')
-                print(bool_square)
-                print('Number of traversed cells', count)
-                print('Peak point to be skipped:', skipped_point)
-                print('Total sum:',total_sum)
-                if count > 0:
-                    avg_values = total_sum / count
-                else: 
-                    avg_values = "Could not divide by 0."
-                print('Average surrounding peak:',avg_values)
-                return avg_values,intensity_peak
-                break
-            else: 
-                print("Invalid coordinate idex.")
-        except ValueError:
-            print("Invalid input. Enter a number of 'q' to quit.")
-
-############################################ From Stream Script (above) #############################################
-
 def load_stream(stream_name):
     global data_columns
     
@@ -182,6 +61,7 @@ def load_stream(stream_name):
         elif line.startswith('----- Begin chunk -----'):
             reading_chunks = True   
     return data_columns
+
 
 #############################################
 
@@ -268,12 +148,14 @@ def populate_intensity_array(data_columns, image_name):
     """
     Populate the intensity array with the intensity values for each x,y coordinate.
     """
+    # reads the h5 image
     with h5.File(image_name, "r") as f:
         intensities = f['/entry/data/data'][()]
     intensities = np.array(intensities)
-
+    # generates a new array of zeros with the same shape as the image
     new_intensities = np.zeros((intensities.shape[0], intensities.shape[1]))
-
+    # for each x,y coordinate in the data_columns, set the value in the new array to the intensity value
+    # populate the intensity array with corresponding (fs,ss) coordinates
     for i in range(len(data_columns['fs'])):
         x = int(data_columns['fs'][i])
         y = int(data_columns['ss'][i])
@@ -281,116 +163,65 @@ def populate_intensity_array(data_columns, image_name):
             new_intensities[x][y] = intensities[x][y]
     return new_intensities
 
-def coordinate_menu(image_array, threshold_value, coordinates, radius): 
-    print("\nCoordinates above given threshold:", threshold_value, 'with radius: ', radius)
-    for i, (x, y) in enumerate(coordinates):
-        print(f"{i + 1}. ({x}, {y})")
-        
-    while True:
-        choice = input("\nWhich coordinate do you want to process? (or 'q' to quit)\n")
-        if choice == "q":
-            print("Exiting")
-            break
-        
-        try: 
-            count = int(choice)-1
-            if 0 <= count < len(coordinates):
-                x,y = coordinates[count]
-                print(f"\nProcessing - ({x}, {y})")
-                print('Printing 9x9 two-dimensional array\n')
-                
-                #creates visualization if the array, of chosen peak
-                print(x,y)
-                display_region = extract_region(image_array, region_size=4, x_center=x, y_center=y)
-                
-                print('DISPLAY REGION \n', display_region, '\n')
-                
-                #segment is the area with the given radius that's passed through the function.
-                segment = extract_region(image_array, region_size=radius, x_center=x, y_center=y)
-                print ('SEGMENT \n', segment, '\n')
-                
-                # COMMENTED OUT FOR NOW, EASE OF TESTING
 
-                #returns boolean array of traversed values.
-                bool_square = np.zeros_like(segment, dtype=bool)
-                print('BOOLEAN: before traversing.', '\n', bool_square, '\n') 
-            
-                ######start 3 ring integration
-                values_array = extract_region(image_array, region_size=radius, x_center=x, y_center=y)
-                
-                #traverses through (i = row) , (j = column)         
+if __name__ == '__main__':            
+    global intensity_array
+    high_stream_name = 'test_high_copy.stream'
+    low_stream_name = 'test_low_copy.stream'
 
-                global avg_values, intensity_peak
-                total_sum = 0; skipped_point = None; count = 0; intensity_peak = 0
-                #traverses through (i = row) , (j = column)
-                for col_index in range(values_array.shape[0]):
-                    for row_index in range(values_array.shape[1]):
-                        if values_array[row_index, col_index] >= 0:
-                            count += 1
-                            bool_square[row_index, col_index] = True
-                            if row_index == radius and col_index == radius:
-                                skipped_point = (row_index, col_index)  
-                                intensity_peak = values_array[row_index, col_index]
-                                print(f'Peak point to be skipped: ({row_index}, {col_index}) ', values_array[radius,radius])
-                            elif abs(row_index - radius) <= 1 and abs(col_index - radius) <=1:
-                                print(f'Passed (row, col) ({row_index}, {col_index})', values_array[row_index,col_index])
-                                pass
-                            else:
-                                print(f'(row,col) ({row_index}, {col_index}) with a value of ', values_array[row_index, col_index])
-                                total_sum += values_array[row_index, col_index]
-                                
-                print('\n######################')
-                print(bool_square)
-                print('Number of traversed cells', count)
-                print('Peak point to be skipped:', skipped_point)
-                print('Total sum:',total_sum)
-                if count > 0:
-                    avg_values = total_sum / count
-                else: 
-                    avg_values = "Could not divide by 0."
-                print('Average surrounding peak:',avg_values)
-                return avg_values,intensity_peak
-                break
-            else: 
-                print("Invalid coordinate idex.")
-        except ValueError:
-            print("Invalid input. Enter a number of 'q' to quit.")
-            
-global intensity_array
-high_stream_name = 'test_high_copy.stream'
-low_stream_name = 'test_low_copy.stream'
+    high_data = load_stream(high_stream_name)
+    low_data = load_stream(low_stream_name)
+    # compare_high_low(high_data, low_data)
 
-high_data = load_stream(high_stream_name)
-low_data = load_stream(low_stream_name)
-# compare_high_low(high_data, low_data)
+    # Took low data from low_stream and put in high_stream file.
+    overwrite_data = low_data
+    overwrite_low_in_high(high_stream_name, overwrite_data)
 
-# Took low data from low_stream and put in high_stream file.
-overwrite_data = low_data
-overwrite_low_in_high(high_stream_name, overwrite_data)
+    ########## compare any columns in data_columns
+    # compare_high_low(high_data, low_data, "h")
 
-########## compare any columns in data_columns
-# compare_high_low(high_data, low_data, "h")
+    ## now high_stream has data from low_stream
+    image_name = "9_18_23_high_intensity_3e8keV-1_test.h5"
+    ## retrieved from stream coordinate menu
+   
+    intensities = intensity_finder(high_data['fs'], high_data['ss'], image_name)
 
-# now high_stream has data from low_stream.
-image_name = "9_18_23_high_intensity_3e8keV-1_test.h5"
-## retrieved from stream coordinate menu
-columns = ['fs', 'ss']
+    # populate_inteneity_array is not correctly working
+    intensities_array = populate_intensity_array(high_data, image_name)
 
-intensities = intensity_finder(high_data['fs'], high_data['ss'], image_name)
-intensities_array = populate_intensity_array(high_data, image_name)
+    print("Number of non-zero values in intensity array\t", np.count_nonzero(intensities_array))  # 1251 10/13/23
 
-print(np.count_nonzero(intensities_array))  # 1251 10/13/23
+    # intensities_array = np.array(intensities_array)
+    # print(intensities_array)
+    # compare_high_low(high_data, low_data, "I")
+ 
+ 
+    import h5_stream_background_subtraction_10_2_23 as streampy
 
-# compare_high_low(high_data, low_data, *columns)
+    threshold_stream = streampy.PeakThresholdProcessor(intensities_array, threshold_value=1e-5) # very low!
+    print("Original threshold value: ", threshold_stream.threshold_value, "\n")
+    coordinate_list_stream = threshold_stream.get_coordinates_above_threshold()
 
-#  intensity_array_overwrite
-threshold = PeakThresholdProcessor(intensities_array, threshold_value=1e-5) # very low! 
-print("Original threshold value: ", threshold.threshold_value, "\n")
-coordinate_list = threshold.get_coordinates_above_threshold()
-
-
-coordinate_menu(intensities_array, threshold_value=threshold.threshold_value, coordinates= coordinate_list, radius=4)
-intensity = intensity_peak
-avg = avg_values
-spot_estimate_peak = intensity - avg
-print("Peak Estimate for ring 3:", spot_estimate_peak, 'with radius of', 4)
+    radius0=1
+    radius1=2
+    radius2=3
+    radius3=4
+    completed = False
+    while not completed:
+        # threshold = streampy.PeakThresholdProcessor(intensities_array, threshold_value=9000)
+        streampy.coordinate_menu(intensities_array, threshold_value=threshold_stream.threshold_value, coordinates=coordinate_list_stream, radius=radius0)
+        # intensity = intensity_peak; avg = avg_values
+        # spot_estimate_peak = intensity - avg    
+        streampy.coordinate_menu(intensities_array, threshold_value=threshold_stream.threshold_value, coordinates=coordinate_list_stream, radius=radius1)
+        # intensity = intensity_peak; avg = avg_values
+        # spot_estimate_peak = intensity - avg    
+        # print("Peak Estimate for ring 1:", spot_estimate_peak, 'with radius of', radius1)
+        streampy.coordinate_menu(intensities_array, threshold_value=threshold_stream.threshold_value, coordinates=coordinate_list_stream, radius=radius2)
+        # intensity = intensity_peak; avg = avg_values
+        # spot_estimate_peak = intensity - avg    
+        # print("Peak Estimate for ring 2:", spot_estimate_peak, 'with radius of', radius2)    
+        streampy.coordinate_menu(intensities_array, threshold_value=threshold_stream.threshold_value, coordinates=coordinate_list_stream, radius=radius3)
+        # intensity = intensity_peak; avg = avg_values
+        # spot_estimate_peak = intensity - avg    
+        # print("Peak Estimate for ring 3:", spot_estimate_peak, 'with radius of', radius3)
+        completed = True   
