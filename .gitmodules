@@ -1,0 +1,3 @@
+[submodule "unitcell_project/scrape_scripts/py-rcsbsearchapi"]
+	path = unitcell_project/scrape_scripts/py-rcsbsearchapi
+	url = https://github.com/rcsb/py-rcsbsearchapi.git
