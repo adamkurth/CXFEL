@@ -144,18 +144,16 @@ def main(spacegroup):
             try:
                 # Load the PDB structure from the file
                 structure = parser.get_structure("protein", pdb_file_path)
-
-                # Calculate the structure weight
+    
+                #calculate the weight of the structure
                 weight = calculate_structure_weight(structure)
                 
-                # Append the results to the lists
                 pdb_ids.append(filename)
                 structure_weights.append(weight)
 
-                # Print the results
-                # print(f"PDB file: {filename}")
-                # print(f"Total structure weight: {weight:.4f} kDa")
-                # print()
+                # Print the results every 10th iteration
+                if len(pdb_ids) % 50 == 0:
+                    print('... calculating structure weights ...', '\n')
 
             except Exception as e:
                 print(f"Error processing PDB file {filename}: {e}")
@@ -163,15 +161,15 @@ def main(spacegroup):
     
     # Create a DataFrame from the lists
     structure_weights_df = pd.DataFrame({
-        "PDB_ID": pdb_ids,
-        "Structure Weight (kDa)": structure_weights
+        'PDB_ID': pdb_ids,
+        'Calculated Structure Weight (kDa)': structure_weights
     })
     # Print the final dataframe
-    print(structure_weights_df)
+    # print(structure_weights_df)
     return structure_weights_df
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Please provide a spacegroup as an argument.")
-    else:
-        main(spacegroup=sys.argv[1])
+# if __name__ == "__main__":
+#     if len(sys.argv) < 2:
+#         print("Please provide a spacegroup as an argument.")
+#     else:
+#         main(spacegroup=sys.argv[1])

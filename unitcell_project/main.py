@@ -109,19 +109,27 @@ def analyze_crystals(space_group):
     intensity_df = pd.concat([unit_cell_df, intensity_df], axis=1, join="outer")
     # Drop the duplicate 'PDB_ID' column
     intensity_df = intensity_df.loc[:, ~intensity_df.columns.duplicated()]
+    # gives unitcell df with all unit cell attributes and intensity df with all intensity attributes
     final_df = calculateVolume(unit_cell_df['alpha'], unit_cell_df['beta'], unit_cell_df['gamma'],unit_cell_df['a'], unit_cell_df['b'], unit_cell_df['c'], intensity_df)
+    # print("Before merge: \n", final_df)
+    #retrieves weights from weight.py
     weights = wt.main(space_group)
+    weights['PDB_ID'] = weights['PDB_ID'].str.replace('.pdb', '', regex=False)
+    #combine
     final_df = pd.merge(final_df, weights, on='PDB_ID')
-    # Reorder columns
-    final_df = intensity_df[['PDB_ID', 'Spacegroup', 'Calculated Structure Weight (kDa)', 'a', 'b', 'c', 'alpha', 'beta', 'gamma', 'UnitCellVolume', 'CrystalVolume', 'VolumeToUnitCellVolRatio', 'Mean Intensity', 'Max Intensity', 'Min Intensity', 'Max-Min Intensity Difference', 'Mean Phase', 'Max Phase', 'Min Phase', 'Max-Min Phase Difference']]
+
+    # Finally reorder columns
+    final_df = final_df[['PDB_ID', 'Spacegroup', 'Calculated Structure Weight (kDa)', 'a', 'b', 'c', 'alpha', 'beta', 'gamma', 'UnitCellVolume', 'CrystalVolume', 'VolumeToUnitCellVolRatio', 'Mean Intensity', 'Max Intensity', 'Min Intensity', 'Max-Min Intensity Difference', 'Mean Phase', 'Max Phase', 'Min Phase', 'Max-Min Phase Difference']]
     final_df, intensity, phase = [df.dropna() for df in [final_df, intensity, phase]]
     return final_df, intensity, phase
 
 def extract_unit_cell_attributes(space_group):
-    # Create an empty list to store dictionaries of unit cell attributes
     unit_cell_attributes_list = []
     pdb_dir = f"/Users/adamkurth/Documents/vscode/CXFEL_Image_Analysis/CXFEL/unitcell_project/run_sfall/pdb/pdb_{space_group}"
-    # Iterate over .pdb files in the directory
+    
+    # structure_weights = wt.main(space_group)
+    # structure_weight_df = pd.DataFrame(structure_weights)
+    
     for pdb_file_name in os.listdir(pdb_dir):
         if pdb_file_name.endswith(".pdb"):
             pdb_name = os.path.splitext(pdb_file_name)[0]
@@ -131,37 +139,29 @@ def extract_unit_cell_attributes(space_group):
                 with open(pdb_path, "r", encoding="utf-8") as pdb_file:
                     pdb_lines = pdb_file.readlines()
 
-                # Extract CRYST1 line or set default values if not found
                 cryst_line = next((line for line in pdb_lines if line.startswith("CRYST1")), None)
-                if cryst_line is not None:
+                if cryst_line:
                     cryst_components = cryst_line.split()
-                    
-                    # Dimension lengths
-                    a = float(cryst_components[1])
-                    b = float(cryst_components[2])
-                    c = float(cryst_components[3])
-
-                    # Angles (in degrees)
-                    alpha = float(cryst_components[4])
-                    beta = float(cryst_components[5])
-                    gamma = float(cryst_components[6])
-                    
-                    structure_weight_kDa = calculate_structure_weight_kDa(pdb_path)
-                    # structure_weight_kDa = 0
-                    
-                    # Append the unit cell attributes to the list
-                    unit_cell_attributes_list.append({'PDB_ID': pdb_name, 'Calculated Structure Weight (kDa)': structure_weight_kDa, 'a': a, 'b': b, 'c': c, 'alpha': alpha, 'beta': beta, 'gamma': gamma})
+                    unit_cell_dict = {
+                        'PDB_ID': pdb_name,
+                        'a': float(cryst_components[1]),
+                        'b': float(cryst_components[2]),
+                        'c': float(cryst_components[3]),
+                        'alpha': float(cryst_components[4]),
+                        'beta': float(cryst_components[5]),
+                        'gamma': float(cryst_components[6])
+                    }
+                    unit_cell_attributes_list.append(unit_cell_dict)
                 else:
-                    # Handle the case when CRYST1 line is not found
                     print(f"Warning: CRYST1 line not found in {pdb_path}. Skipping.")
+
             except FileNotFoundError:
                 print(f"Error: {pdb_path} not found.")
                 continue
-
-    # Create a DataFrame from the list of unit cell attributes
-    unit_cell_attributes_df = pd.DataFrame(unit_cell_attributes_list)
     
+    unit_cell_attributes_df = pd.DataFrame(unit_cell_attributes_list)
     return unit_cell_attributes_df
+
 
 
 def calculateVolume(alpha, beta, gamma, a, b, c, df_in):
@@ -176,37 +176,6 @@ def calculateVolume(alpha, beta, gamma, a, b, c, df_in):
     df_in['VolumeToUnitCellVolRatio'] = crystal_vol / unitcell_vol
     return df_in
 
-
-def calculate_structure_weight_kDa(pdb_path):
-    """Calculate the total weight of the structure in kDa."""
-    # Define a dictionary of atomic weights
-    atomic_weights = {
-        'H': 1.008,
-        'C': 12.011,
-        'N': 14.007,
-        'O': 15.999,
-        'P': 30.974,
-        'S': 32.06,
-        'Cl': 35.45,
-        'K': 39.098,
-        'Ca': 40.078,
-        'Fe': 55.845,
-        'Zn': 65.38,
-        'Br': 79.904,
-        'I': 126.904,
-    }
-    parser = PDBParser(QUIET=True)
-    structure = parser.get_structure("protein", pdb_path)
-    total_weight = 0
-
-    for model in structure:
-        for chain in model:
-            for residue in chain:
-                for atom in residue:
-                    atom_type = atom.element
-                    total_weight += atomic_weights.get(atom_type, 0)  # Default weight is 0 if atom type is not found
-    
-    return total_weight / 1000  # Convert to kDa
 
 # def extract_unit_cell_attributes(space_group, pdb_files):
 #     # Create an empty list to store dictionaries of unit cell attributes
@@ -261,31 +230,34 @@ if __name__ == "__main__":
     
     wd = os.getcwd()
     P1211_df, P1211_intensities, P1211_phases = analyze_crystals("P1211")    
-    # print(P1211_intensities)
-    print(P1211_df)  
-    # w.write(P1211_df, P1211_intensities, P1211_phases, 'P1211', wd)
+    print('P1211 Intensity DF: \n', P1211_intensities)
+    print('P1211 Phase DF: \n', P1211_phases)
+    print('P1211 Main DF: \n', P1211_df)  
+    # # w.write(P1211_df, P1211_intensities, P1211_phases, 'P1211', wd)
     P121_df, P121_intensities, P121_phases = analyze_crystals("P121")
-    # print(P121_intensities)
-    print(P121_df)
-    # w.write(P121_df, P121_intensities, P121_phases, 'P121', wd)
+    print('P121 Intensity DF: \n', P121_intensities)
+    print('P121 Phase DF: \n', P121_phases)
+    print('P121 Main DF: \n', P121_df)  
+    # # w.write(P121_df, P121_intensities, P121_phases, 'P121', wd)
     C121_df, C121_intensities, C121_phases  = analyze_crystals("C121")
-    # print(C121_intensities)
-    print(C121_df)
-    # w.write(C121_df, C121_intensities, C121_phases, 'C121', wd)
+    print('C121 Intensity DF: \n', C121_intensities)
+    print('C121 Phase DF: \n', C121_phases)
+    print('C121 Main DF: \n', C121_df)  
+    # # # w.write(C121_df, C121_intensities, C121_phases, 'C121', wd)
 
     for df in [P1211_intensities, P121_intensities, C121_intensities]:
         print(df.describe())
         print("\n")
 
     """"""
-    # d.plot_hist(P1211_intensities)
-    # d.plot_hist_phases(P1211_phases)
+    d.plot_hist(P1211_intensities)
+    d.plot_hist_phases(P1211_phases)
     
-    # d.contour(P1211_intensities)
-    # d.contour(P1211_phases)
+    d.contour(P1211_intensities)
+    d.contour(P1211_phases)
     
-    # d.plot_density(P1211_intensities)
-    # d.plot_density(P1211_phases)
+    d.plot_density(P1211_intensities)
+    d.plot_density(P1211_phases)
     
     # d.plot_boxplot(P1211_intensities)   
     

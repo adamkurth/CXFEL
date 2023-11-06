@@ -66,12 +66,6 @@ def plot_hist_phases(values_df):
     plt.show()
     return None
 
-
-# def plot_3d(values_df):
-    
-    
-    
-    
     
 def contour(values_df):
     # Scale the values to be between 0 and 1

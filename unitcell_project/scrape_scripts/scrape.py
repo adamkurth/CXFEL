@@ -19,3 +19,5 @@ def truncate(pdb_ids, limit):
     if len(pdb_ids) > limit:
         pdb_ids = pdb_ids[:limit]
     return pdb_ids
+
+# get_pdb_ids("P 21 21 21", "triclinic", limit=10)
