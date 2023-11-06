@@ -1,23 +1,24 @@
 from Bio.PDB import PDBParser, PDBIO
 import os
 import sys
-# Dictionary of atomic weights (in Da (Dalton))) 
+import pandas as pd 
 # 1 Dalton is approximately equal to the mass of one hydrogen atom, which is about 1.00784 atomic mass units (u).
 # Script is close by not exact...
 # Protein Weight (Da) = Protein Weight (kDa) * 1000
+
 atomic_weights = {
-    'H': 1.00784,
-    'He': 4.0026,
-    'Li': 6.94,
-    'Be': 9.0122,
+    'H': 1.008,
+    'He': 4.003,
+    'Li': 6.941,
+    'Be': 9.012,
     'B': 10.81,
-    'C': 12.011,
-    'N': 14.007,
-    'O': 15.999,
-    'F': 18.998,
-    'Ne': 20.180,
-    'Na': 22.990,
-    'Mg': 24.305,
+    'C': 12.01,
+    'N': 14.01,
+    'O': 16.00,
+    'F': 19.00,
+    'Ne': 20.18,
+    'Na': 22.99,
+    'Mg': 24.31,
     'Al': 26.982,
     'Si': 28.085,
     'P': 30.974,
@@ -114,41 +115,63 @@ def calculate_structure_weight(structure):
                     element = atom.element
                     if element in atomic_weights:
                         weight += atomic_weights[element]
-    return weight
+    return weight/1000.0
 
-def main(pdb_file):
-    # Create a PDB parser
-    parser = PDBParser(QUIET=True)
+def main(spacegroup):
+    # Get the current working directory
+    current_directory = os.getcwd()
 
-    # Load the PDB structure from the file
-    structure = parser.get_structure("protein", pdb_file)
+    # Construct the path to the target directory
+    target_directory = os.path.join(current_directory, f"run_sfall/pdb/pdb_{spacegroup}")
 
-    # Add hydrogen atoms to the structure
-    io = PDBIO()
-    io.set_structure(structure)
-    io.save(pdb_file)
+    # Check if the target directory exists
+    if not os.path.exists(target_directory):
+        print(f"Directory not found: {target_directory}")
+        return
+    # Create empty lists to store results
+    pdb_ids = []
+    structure_weights = []
 
-    # Recreate the structure after adding hydrogen atoms
-    structure = parser.get_structure("protein", pdb_file)
+    # Iterate over files in the target directory
+    for filename in os.listdir(target_directory):
+        # Check if the file has a .pdb extension
+        if filename.endswith(".pdb"):
+            pdb_file_path = os.path.join(target_directory, filename)
 
-    # Calculate the structure weight
-    weight = calculate_structure_weight(structure)
+            # Create a PDB parser
+            parser = PDBParser(QUIET=True)
 
-    print(f"Total structure weight: {weight/1000:.4f} kDa")
+            try:
+                # Load the PDB structure from the file
+                structure = parser.get_structure("protein", pdb_file_path)
+
+                # Calculate the structure weight
+                weight = calculate_structure_weight(structure)
+                
+                # Append the results to the lists
+                pdb_ids.append(filename)
+                structure_weights.append(weight)
+
+                # Print the results
+                # print(f"PDB file: {filename}")
+                # print(f"Total structure weight: {weight:.4f} kDa")
+                # print()
+
+            except Exception as e:
+                print(f"Error processing PDB file {filename}: {e}")
+                continue
+    
+    # Create a DataFrame from the lists
+    structure_weights_df = pd.DataFrame({
+        "PDB_ID": pdb_ids,
+        "Structure Weight (kDa)": structure_weights
+    })
+    # Print the final dataframe
+    print(structure_weights_df)
+    return structure_weights_df
 
 if __name__ == "__main__":
-    pdb_files = []
-    for root, dirs, files in os.walk(os.path.join(os.getcwd(), "formatted_data/pdb_files")):
-        for file in files:
-            if file.endswith(".pdb"):
-                pdb_files.append(file)
-
     if len(sys.argv) < 2:
-        print("Please provide a PDB file name as an argument.")
+        print("Please provide a spacegroup as an argument.")
     else:
-        pdb_file = sys.argv[1]
-        if pdb_file not in pdb_files:
-            print(f"{pdb_file} not found in directory.")
-        else:
-            pdb_path = os.path.join(os.getcwd(), "formatted_data/pdb_files", pdb_file)
-            main(pdb_path)
+        main(spacegroup=sys.argv[1])

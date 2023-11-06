@@ -1,0 +1,10 @@
+# .gitignore
+*.hkl
+*.txt
+*.mtz
+*.pdb
+unitcell_project/run_sfall/data/*
+unitcell_project/run_sfall/mtz/*
+unitcell_project/run_sfall/out/*
+unitcell_project/run_sfall/pdb/*
+unitcell_project/scrape_scripts/py-rcsbsearchapi/*

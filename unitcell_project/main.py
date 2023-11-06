@@ -12,7 +12,7 @@ from plot import dist as d
 from format_scripts import write as w
 from scrape_scripts import download_files as dl
 from scrape_scripts import scrape as s
-
+import weight as wt
 # Research Question: whether there is a linear dependence of X-ray diffraction intensities on the number of unit cells exposed to the X-rays.
 
 # input_data
@@ -97,7 +97,7 @@ def analyze_crystals(space_group):
                                  'Min Phase': phase_min,
                                  'Max-Min Phase Difference': max_min_diff_phase
                                  })
-  
+    
     intensity_df = pd.DataFrame(intensity_dict)
     phase_df = pd.DataFrame(phase_dict)
     for i in (intensity_df, phase_df):
@@ -110,6 +110,8 @@ def analyze_crystals(space_group):
     # Drop the duplicate 'PDB_ID' column
     intensity_df = intensity_df.loc[:, ~intensity_df.columns.duplicated()]
     final_df = calculateVolume(unit_cell_df['alpha'], unit_cell_df['beta'], unit_cell_df['gamma'],unit_cell_df['a'], unit_cell_df['b'], unit_cell_df['c'], intensity_df)
+    weights = wt.main(space_group)
+    final_df = pd.merge(final_df, weights, on='PDB_ID')
     # Reorder columns
     final_df = intensity_df[['PDB_ID', 'Spacegroup', 'Calculated Structure Weight (kDa)', 'a', 'b', 'c', 'alpha', 'beta', 'gamma', 'UnitCellVolume', 'CrystalVolume', 'VolumeToUnitCellVolRatio', 'Mean Intensity', 'Max Intensity', 'Min Intensity', 'Max-Min Intensity Difference', 'Mean Phase', 'Max Phase', 'Min Phase', 'Max-Min Phase Difference']]
     final_df, intensity, phase = [df.dropna() for df in [final_df, intensity, phase]]
@@ -256,67 +258,20 @@ if __name__ == "__main__":
     
     
     # weights in kDa (kilo Daltons)
-    weights = {
-        '104m': 18.03,
-        '137l': 37.38, 
-        '169l': 90.9, 
-        '1a28': 59.74,
-        '1a2a': 111.11,
-        '19hc': 73.97,
-        '105m': 18.03, 
-        '153l': 20.41,
-        '154l': 21.03,
-        '157d' : 7.7,
-        '176l' : 37.24,
-        '180l' : 37.31,
-        '1a01' : 64.38,
-        '1a02' : 59.85, 
-        '1a0o' : 114.17,
-        '1a2j' : 21.16, 
-        '1a3a' : 65.39,
-        '1a3n' : 64.55,
-        '12e8' :  94.84,
-        '135l' : 14.23, 
-        
-        '1gh4' : 14.01,
-        '1gxb' : 151.25, 
-        '1hcj' : 107.55,
-        '1hkn' : 94.71,
-        '1ic1' : 44.22,
-        '1ijy' : 29.89,
-        '1jde' : 96.77,
-        '1kbl' : 97.14,
-        '1kc7' : 97.22, 
-        '1kog' : 472.58,
-        '1kyw' : 120.95, 
-        '1kyz' : 121.71, 
-        '1lf3' : 37.93, 
-        '1lf4' : 37.12,
-        '1o17' : 150.48,
-        '1vfg' : 140.76, 
-        '1vgl' : 48.57, 
-        '1vjh' : 27.75,   
-        '1vl9' : 14.64, 
-        '1xpp' : 54.26,
-        '1xtf' : 98.08,  
-        '1y5x' : 86.39,
-        '1y99' : 14.98
-        
-        }
     
     wd = os.getcwd()
     P1211_df, P1211_intensities, P1211_phases = analyze_crystals("P1211")    
     # print(P1211_intensities)
-    # print(P1211_df)  
-    w.write(P1211_df, P1211_intensities, P1211_phases, 'P1211', wd)
+    print(P1211_df)  
+    # w.write(P1211_df, P1211_intensities, P1211_phases, 'P1211', wd)
     P121_df, P121_intensities, P121_phases = analyze_crystals("P121")
     # print(P121_intensities)
-    # print(P121_df)
-    w.write(P121_df, P121_intensities, P121_phases, 'P121', wd)
+    print(P121_df)
+    # w.write(P121_df, P121_intensities, P121_phases, 'P121', wd)
     C121_df, C121_intensities, C121_phases  = analyze_crystals("C121")
     # print(C121_intensities)
-    # print(C121_df)
-    w.write(C121_df, C121_intensities, C121_phases, 'C121', wd)
+    print(C121_df)
+    # w.write(C121_df, C121_intensities, C121_phases, 'C121', wd)
 
     for df in [P1211_intensities, P121_intensities, C121_intensities]:
         print(df.describe())
