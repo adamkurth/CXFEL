@@ -4,3 +4,6 @@
 [submodule "unitcell_repo"]
 	path = unitcell_repo
 	url = https://github.com/adamkurth/unitcell_repo.git
+[submodule "waterbackground_subtraction"]
+	path = waterbackground_subtraction
+	url = https://github.com/adamkurth/waterbackground_subtraction.git
